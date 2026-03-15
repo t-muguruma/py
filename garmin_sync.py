@@ -38,15 +38,37 @@ def fetch_daily_data(garmin_client, date_obj):
         stats = garmin_client.get_user_summary(date_str)
         
         # 必要なデータを抽出（項目は必要に応じて調整してください）
+        # 単位変換とデータ加工
+        # 睡眠: 秒 -> 時間
+        sleep_seconds = stats.get('sleepingSeconds')
+        sleep_hours = round(sleep_seconds / 3600, 2) if sleep_seconds else None
+
+        # 体重: グラム -> キログラム (Garmin APIはグラムで返すことがあるため念のため)
+        weight = stats.get('totalWeight')
+        if weight and weight > 1000:
+            weight = round(weight / 1000, 2)
+
+        # スプレッドシートの列順序に合わせて辞書を作成
         data_dict = {
             'calendarDate': date_str,
             'weight': stats.get('totalWeight'),
+            'steps': stats.get('totalSteps'),
+            'heart_rate': stats.get('restingHeartRate'),
+            'stress': stats.get('averageStressLevel'),
+            'body_battery': None, # Summaryからは直接取れないため一旦None
+            'sleep_hours': sleep_hours,
+            'weight': weight,
             'bmi': stats.get('bodyMassIndex'),
             'bodyFat': stats.get('bodyFat'),
             'steps': stats.get('totalSteps'),
             'restingHR': stats.get('restingHeartRate'),
             'sleepSeconds': stats.get('sleepingSeconds'),
             # 'stress': stats.get('averageStressLevel'), # 必要ならコメントアウト解除
+            'body_fat_pct': stats.get('bodyFat'),
+            'muscle_pct': stats.get('muscleMass'),
+            'visceral_fat': stats.get('visceralFat'),
+            'metabolism': stats.get('bmr'),
+            'bone_mass': stats.get('boneMass'),
         }
         print(f"✅ Data fetched for {date_str}")
         return data_dict
@@ -68,6 +90,12 @@ def sync_to_google_sheets(data_dict):
     if not client:
         return
 
+    # サービスアカウントのメールアドレスを表示しておくと便利
+    try:
+        print(f"ℹ️  Service Account Email: {client.auth.service_account_email}")
+    except:
+        pass
+
     try:
         sheet = client.open_by_key(SPREADSHEET_ID).sheet1
         # データの追加ロジック（例：末尾に追加）
@@ -77,6 +105,9 @@ def sync_to_google_sheets(data_dict):
         print("✅ Google Sheets updated.")
     except Exception as e:
         print(f"❌ Google Sheets Sync Error: {e}")
+        if "403" in str(e):
+            print("💡 ヒント: 上記のサービスアカウントのメールアドレスをコピーし、")
+            print("   スプレッドシートの「共有」ボタンから「編集者」として追加してください。")
 
 
 def main():
