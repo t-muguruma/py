@@ -72,57 +72,70 @@ def fetch_daily_data(garmin_client, date_obj):
         return None
 
 
-def sync_to_google_sheets(data_dict):
-    """Googleスプレッドシートにデータを同期する"""
-    print("\n--- Google Sheetsへの同期を開始 ---")
-    
+def get_spreadsheet_client():
+    """スプレッドシートクライアントとシートオブジェクトを取得"""
     if not SA_KEY_VALUE:
         print(f"⚠️ 警告: シークレット 'SA_KEY' が設定されていません。")
-        print("   Googleスプレッドシートへの同期をスキップします。")
-        return
+        return None, None
 
     client = my_garmin_common.get_google_creds(SA_KEY_VALUE)
     if not client:
-        return
-
-    # サービスアカウントのメールアドレスを表示しておくと便利
-    try:
-        print(f"ℹ️  Service Account Email: {client.auth.service_account_email}")
-    except:
-        pass
+        return None, None
 
     try:
-        sheet = client.open_by_key(SPREADSHEET_ID).sheet1
-        # データの追加ロジック（例：末尾に追加）
-        # 実際には日付の重複チェックなどが必要かもしれませんが、ここでは単純追加の例
-        values = list(data_dict.values())
-        sheet.append_row(values)
-        print("✅ Google Sheets updated.")
+        # スプレッドシートを開く
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        
+        # サービスアカウントのメールアドレスを表示（権限確認用）
+        try:
+            print(f"ℹ️  Service Account Email: {client.auth.service_account_email}")
+        except:
+            pass
+            
+        return client, spreadsheet
     except Exception as e:
-        print(f"❌ Google Sheets Sync Error: {e}")
+        print(f"❌ Spreadsheet Connection Error: {e}")
         if "403" in str(e):
             print("💡 ヒント: 上記のサービスアカウントのメールアドレスをコピーし、")
             print("   スプレッドシートの「共有」ボタンから「編集者」として追加してください。")
+        return None, None
 
 
 def main():
     """メイン処理"""
-    # 1. Garminログイン
+    # 1. スプレッドシート接続（先に確認）
+    client, spreadsheet = get_spreadsheet_client()
+    if not spreadsheet:
+        print("❌ スプレッドシートに接続できないため終了します。")
+        return
+
+    # シートの準備
+    # 1) sheet1: ログ用（単純追記）
+    log_sheet = spreadsheet.sheet1
+    
+    # 2) daily_summary: マスタ用（CSVの代わり）
+    SUMMARY_SHEET_NAME = 'daily_summary'
+    try:
+        summary_sheet = spreadsheet.worksheet(SUMMARY_SHEET_NAME)
+    except:
+        print(f"Creating new sheet: {SUMMARY_SHEET_NAME}")
+        summary_sheet = spreadsheet.add_worksheet(title=SUMMARY_SHEET_NAME, rows=1000, cols=20)
+
+    # 2. Garminログイン
     garmin = login_to_garmin()
     if not garmin:
         return
 
-    # 2. 既存データをCSVから読み込み
-    df_current = my_garmin_common.load_data()
+    # 3. 既存データをスプレッドシート(daily_summary)から読み込み
+    print("Loading existing data from sheet...")
+    df_current = my_garmin_common.sheet_to_df(summary_sheet)
     print(f"Current data rows: {len(df_current)}")
 
-    # 3. データの取得（例：今日と昨日のデータを確認）
+    # 4. データの取得
     today = datetime.date.today()
-    # 必要に応じて遡る日数を変えてください
     target_dates = [today - datetime.timedelta(days=i) for i in range(2)] 
     
     new_data_list = []
-    
     for date_obj in target_dates:
         data = fetch_daily_data(garmin, date_obj)
         if data:
@@ -132,20 +145,24 @@ def main():
         print("No new data fetched.")
         return
 
-    # 4. CSVの更新と保存
+    # 5. マージと保存（daily_summaryへ上書き）
     df_new = pd.DataFrame(new_data_list)
     df_new['calendarDate'] = df_new['calendarDate'].astype(str)
     df_new = df_new.set_index('calendarDate')
     
-    # 既存データと結合（新しいデータを優先して上書き）
     df_updated = df_new.combine_first(df_current)
-    my_garmin_common.save_data(df_updated)
+    
+    # ソートして保存
+    df_updated = df_updated.sort_index(ascending=False)
+    my_garmin_common.df_to_sheet(summary_sheet, df_updated)
 
-    # 5. 最新データ（今日分）だけスプレッドシートに送る例
-    # 全データを同期するとAPI制限にかかりやすいため、最新1件のみなどを推奨
+    # 6. ログ用シート(Sheet1)への追記（最新データのみ）
     if new_data_list:
+        print("\n--- Appending to Log Sheet ---")
         latest_data = new_data_list[0] # リストの先頭が最新（今日）
-        sync_to_google_sheets(latest_data)
+        values = list(latest_data.values())
+        log_sheet.append_row(values)
+        print("✅ Log sheet updated.")
 
 if __name__ == "__main__":
     main()
