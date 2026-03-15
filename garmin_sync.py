@@ -180,6 +180,47 @@ def main():
         print("\n--- Appending to Log Sheet ---")
         latest_data = new_data_list[0] # リストの先頭が最新（今日）
         
+        # 1. ヘッダー（タイトル行）を最新の状態に強制更新
+        # これで項目が増えてもタイトルがズレない！
+        headers = list(latest_data.keys())
+        headers[0] = 'timestamp' # 1列目は実行日時にするので名前も変更
+        
+        # 日本語名のマッピング定義
+        column_map = {
+            'timestamp': '実行日時',
+            'calendarDate': '対象日付',
+            'steps': '歩数',
+            'distance_m': '移動距離',
+            'floors_ascended': '上昇階数',
+            'active_calories': '活動カロリー',
+            'total_calories': '総カロリー',
+            'heart_rate': '安静時心拍',
+            'max_heart_rate': '最大心拍',
+            'min_heart_rate': '最小心拍',
+            'stress': 'ストレス',
+            'body_battery': 'BodyBattery',
+            'sleep_hours': '睡眠時間',
+            'weight': '体重',
+            'bmi': 'BMI',
+            'body_fat_pct': '体脂肪率',
+            'muscle_pct': '筋肉率',
+            'visceral_fat': '内臓脂肪',
+            'metabolism': '基礎代謝',
+            'bone_mass': '骨量',
+            'water_ml': '水分摂取',
+            'moderate_minutes': '中強度運動',
+            'vigorous_minutes': '高強度運動',
+        }
+        # "日本語名(key)" の形式に変換
+        header_row = [f"{column_map.get(k, k)}({k})" for k in headers]
+
+        try:
+            log_sheet.update('A1', [header_row])
+            print("✅ Log sheet header updated.")
+        except Exception as e:
+            print(f"⚠️ Failed to update header: {e}")
+
+        # 2. ログデータの作成と追記
         # ログシート用に日時スタンプを作成し、先頭の年月日を置き換える
         log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         values = list(latest_data.values())
