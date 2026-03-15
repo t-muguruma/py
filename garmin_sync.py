@@ -66,7 +66,7 @@ def fetch_daily_data(garmin_client, date_obj):
             'max_heart_rate': stats.get('maxHeartRate'), # 最大心拍
             'min_heart_rate': stats.get('minHeartRate'), # 最小心拍
             'stress': stats.get('averageStressLevel'), 
-            'body_battery': stats.get('maxBodyBattery'), # 取れるか不明だが一応追加
+            'body_battery': stats.get('bodyBatteryMostRecentValue'), # 取れるか不明だが一応追加
             # --- 睡眠・回復 ---
             'sleep_hours': sleep_hours,
             # --- 体組成 ---
