@@ -12,7 +12,6 @@ load_dotenv()
 # --- 設定項目 ---
 GARMIN_EMAIL = my_garmin_common.get_secret("GARMIN_EMAIL")
 GARMIN_PASSWORD = my_garmin_common.get_secret("GARMIN_PASSWORD")
-SPREADSHEET_ID = '15CCDjcBCqSWYacPWf_RNXTBdJZ33x6pXAc1PhwPfkiY'
 SA_KEY_VALUE = my_garmin_common.get_secret("SA_KEY")
 
 
@@ -91,66 +90,24 @@ def fetch_daily_data(garmin_client, date_obj):
         return None
 
 
-def get_spreadsheet_client():
-    """スプレッドシートクライアントとシートオブジェクトを取得"""
-    if not SA_KEY_VALUE:
-        print(f"⚠️ 警告: シークレット 'SA_KEY' が設定されていません。")
-        return None, None
-
-    client = my_garmin_common.get_google_creds(SA_KEY_VALUE)
-    if not client:
-        return None, None
-
-    try:
-        # スプレッドシートを開く
-        spreadsheet = client.open_by_key(SPREADSHEET_ID)
-        
-        # サービスアカウントのメールアドレスを表示（権限確認用）
-        try:
-            print(f"ℹ️  Service Account Email: {client.auth.service_account_email}")
-        except:
-            pass
-            
-        return client, spreadsheet
-    except Exception as e:
-        print(f"❌ Spreadsheet Connection Error: {e}")
-        if "403" in str(e):
-            print("💡 ヒント: 上記のサービスアカウントのメールアドレスをコピーし、")
-            print("   スプレッドシートの「共有」ボタンから「編集者」として追加してください。")
-        return None, None
-
-
 def main():
     """メイン処理"""
     # 1. スプレッドシート接続（先に確認）
-    client, spreadsheet = get_spreadsheet_client()
+    if not SA_KEY_VALUE:
+        print("❌ シークレット 'SA_KEY' が設定されていません。")
+        return
+
+    spreadsheet = my_garmin_common.get_spreadsheet(SA_KEY_VALUE)
     if not spreadsheet:
         print("❌ スプレッドシートに接続できないため終了します。")
         return
-
-    # シートの準備
-    # 1) sheet1: ログ用（単純追記）
-    log_sheet = spreadsheet.sheet1
-    
-    # 2) daily_summary: マスタ用（CSVの代わり）
-    SUMMARY_SHEET_NAME = 'daily_summary'
-    try:
-        summary_sheet = spreadsheet.worksheet(SUMMARY_SHEET_NAME)
-    except:
-        print(f"Creating new sheet: {SUMMARY_SHEET_NAME}")
-        summary_sheet = spreadsheet.add_worksheet(title=SUMMARY_SHEET_NAME, rows=1000, cols=20)
 
     # 2. Garminログイン
     garmin = login_to_garmin()
     if not garmin:
         return
 
-    # 3. 既存データをスプレッドシート(daily_summary)から読み込み
-    print("Loading existing data from sheet...")
-    df_current = my_garmin_common.sheet_to_df(summary_sheet)
-    print(f"Current data rows: {len(df_current)}")
-
-    # 4. データの取得
+    # 3. データの取得
     today = datetime.date.today()
     target_dates = [today - datetime.timedelta(days=i) for i in range(2)] 
     
@@ -164,70 +121,15 @@ def main():
         print("No new data fetched.")
         return
 
-    # 5. マージと保存（daily_summaryへ上書き）
-    df_new = pd.DataFrame(new_data_list)
-    df_new['calendarDate'] = df_new['calendarDate'].astype(str)
-    df_new = df_new.set_index('calendarDate')
-    
-    df_updated = df_new.combine_first(df_current)
-    
-    # ソートして保存
-    df_updated = df_updated.sort_index(ascending=False)
-    my_garmin_common.df_to_sheet(summary_sheet, df_updated)
+    # 4. マージと保存（daily_summaryへ上書き）
+    # 最新の日付から順に処理
+    for data in new_data_list:
+         my_garmin_common.update_daily_summary(spreadsheet, data)
 
-    # 6. ログ用シート(Sheet1)への追記（最新データのみ）
+    # 5. ログ用シート(Sheet1)への追記（最新データのみ）
     if new_data_list:
-        print("\n--- Appending to Log Sheet ---")
         latest_data = new_data_list[0] # リストの先頭が最新（今日）
-        
-        # 1. ヘッダー（タイトル行）を最新の状態に強制更新
-        # これで項目が増えてもタイトルがズレない！
-        headers = list(latest_data.keys())
-        headers[0] = 'timestamp' # 1列目は実行日時にするので名前も変更
-        
-        # 日本語名のマッピング定義
-        column_map = {
-            'timestamp': '実行日時',
-            'calendarDate': '対象日付',
-            'steps': '歩数',
-            'distance_m': '移動距離',
-            'floors_ascended': '上昇階数',
-            'active_calories': '活動カロリー',
-            'total_calories': '総カロリー',
-            'heart_rate': '安静時心拍',
-            'max_heart_rate': '最大心拍',
-            'min_heart_rate': '最小心拍',
-            'stress': 'ストレス',
-            'body_battery': 'BodyBattery',
-            'sleep_hours': '睡眠時間',
-            'weight': '体重',
-            'bmi': 'BMI',
-            'body_fat_pct': '体脂肪率',
-            'muscle_pct': '筋肉率',
-            'visceral_fat': '内臓脂肪',
-            'metabolism': '基礎代謝',
-            'bone_mass': '骨量',
-            'water_ml': '水分摂取',
-            'moderate_minutes': '中強度運動',
-            'vigorous_minutes': '高強度運動',
-        }
-        # "日本語名(key)" の形式に変換
-        header_row = [f"{column_map.get(k, k)}({k})" for k in headers]
-
-        try:
-            log_sheet.update('A1', [header_row])
-            print("✅ Log sheet header updated.")
-        except Exception as e:
-            print(f"⚠️ Failed to update header: {e}")
-
-        # 2. ログデータの作成と追記
-        # ログシート用に日時スタンプを作成し、先頭の年月日を置き換える
-        log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        values = list(latest_data.values())
-        values[0] = log_timestamp
-        
-        log_sheet.append_row(values)
-        print("✅ Log sheet updated.")
+        my_garmin_common.append_to_log(spreadsheet, latest_data)
 
 if __name__ == "__main__":
     main()
