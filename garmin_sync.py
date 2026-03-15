@@ -51,7 +51,6 @@ def fetch_daily_data(garmin_client, date_obj):
         # スプレッドシートの列順序に合わせて辞書を作成
         data_dict = {
             'calendarDate': date_str,
-            'weight': stats.get('totalWeight'),
             'steps': stats.get('totalSteps'),
             'heart_rate': stats.get('restingHeartRate'),
             'stress': stats.get('averageStressLevel'),
@@ -59,11 +58,6 @@ def fetch_daily_data(garmin_client, date_obj):
             'sleep_hours': sleep_hours,
             'weight': weight,
             'bmi': stats.get('bodyMassIndex'),
-            'bodyFat': stats.get('bodyFat'),
-            'steps': stats.get('totalSteps'),
-            'restingHR': stats.get('restingHeartRate'),
-            'sleepSeconds': stats.get('sleepingSeconds'),
-            # 'stress': stats.get('averageStressLevel'), # 必要ならコメントアウト解除
             'body_fat_pct': stats.get('bodyFat'),
             'muscle_pct': stats.get('muscleMass'),
             'visceral_fat': stats.get('visceralFat'),
@@ -71,6 +65,7 @@ def fetch_daily_data(garmin_client, date_obj):
             'bone_mass': stats.get('boneMass'),
         }
         print(f"✅ Data fetched for {date_str}")
+        print(f"   📊 {data_dict}")
         return data_dict
     except Exception as e:
         print(f"⚠️ Failed to fetch data for {date_obj}: {e}")
