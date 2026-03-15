@@ -4,6 +4,7 @@ import my_garmin_common
 from dotenv import load_dotenv
 import datetime
 import os
+import pprint
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
@@ -36,6 +37,10 @@ def fetch_daily_data(garmin_client, date_obj):
     try:
         date_str = date_obj.strftime("%Y-%m-%d")
         stats = garmin_client.get_user_summary(date_str)
+
+        # 🔍 デバッグ用: APIから返ってきた生の全データを表示
+        print(f"--- Raw Data for {date_str} ---")
+        pprint.pprint(stats)
         
         # 必要なデータを抽出（項目は必要に応じて調整してください）
         # 単位変換とデータ加工
@@ -51,11 +56,21 @@ def fetch_daily_data(garmin_client, date_obj):
         # スプレッドシートの列順序に合わせて辞書を作成
         data_dict = {
             'calendarDate': date_str,
+            # --- 活動量 ---
             'steps': stats.get('totalSteps'),
+            'distance_m': stats.get('totalDistanceMeters'), # 移動距離(m)
+            'floors_ascended': stats.get('floorsAscended'), # 上った階数
+            'active_calories': stats.get('activeKilocalories'), # 活動カロリー
+            'total_calories': stats.get('totalKilocalories'), # 総消費カロリー
+            # --- 心拍・ストレス ---
             'heart_rate': stats.get('restingHeartRate'),
-            'stress': stats.get('averageStressLevel'),
-            'body_battery': None, # Summaryからは直接取れないため一旦None
+            'max_heart_rate': stats.get('maxHeartRate'), # 最大心拍
+            'min_heart_rate': stats.get('minHeartRate'), # 最小心拍
+            'stress': stats.get('averageStressLevel'), 
+            'body_battery': stats.get('maxBodyBattery'), # 取れるか不明だが一応追加
+            # --- 睡眠・回復 ---
             'sleep_hours': sleep_hours,
+            # --- 体組成 ---
             'weight': weight,
             'bmi': stats.get('bodyMassIndex'),
             'body_fat_pct': stats.get('bodyFat'),
@@ -63,6 +78,10 @@ def fetch_daily_data(garmin_client, date_obj):
             'visceral_fat': stats.get('visceralFat'),
             'metabolism': stats.get('bmr'),
             'bone_mass': stats.get('boneMass'),
+            'water_ml': stats.get('totalWaterIntake'), # 水分摂取
+            # --- 運動時間 ---
+            'moderate_minutes': stats.get('moderateIntensityMinutes'), # 中強度運動(分)
+            'vigorous_minutes': stats.get('vigorousIntensityMinutes'), # 高強度運動(分)
         }
         print(f"✅ Data fetched for {date_str}")
         print(f"   📊 {data_dict}")
@@ -160,7 +179,12 @@ def main():
     if new_data_list:
         print("\n--- Appending to Log Sheet ---")
         latest_data = new_data_list[0] # リストの先頭が最新（今日）
+        
+        # ログシート用に日時スタンプを作成し、先頭の年月日を置き換える
+        log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         values = list(latest_data.values())
+        values[0] = log_timestamp
+        
         log_sheet.append_row(values)
         print("✅ Log sheet updated.")
 
