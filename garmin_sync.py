@@ -112,8 +112,10 @@ def main():
         return
 
     # 3. データの取得
-    today = datetime.date.today()
-    target_dates = [today - datetime.timedelta(days=i) for i in range(2)] 
+    # システム日付ではなく、JSTでの「今日」を取得
+    today_jst = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    # 今日と昨日のデータを取得対象にする
+    target_dates = [today_jst - datetime.timedelta(days=i) for i in range(2)] 
     
     new_data_list = []
     for date_obj in target_dates:

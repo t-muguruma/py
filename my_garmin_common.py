@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import json
 import datetime
+from zoneinfo import ZoneInfo
 from google.oauth2.service_account import Credentials
 import gspread
 
@@ -138,8 +139,27 @@ def update_daily_summary(spreadsheet, data_dict):
         # 既存データを取得
         df_current = sheet_to_df(sheet)
         
+        # 作業用データを作成（日付がない場合は今日を入れる）
+        # JSTの現在日時を取得
+        now_jst = datetime.datetime.now(ZoneInfo("Asia/Tokyo"))
+        work_data = data_dict.copy()
+        input_date_str = str(work_data.get('calendarDate') or "").strip()
+
+        # 日付文字列の整形 (yyyy-mm-dd HH:mm:ss -> yyyy-mm-dd)
+        target_date_str = ""
+        if not input_date_str:
+            target_date_str = now_jst.strftime("%Y-%m-%d")
+        elif len(input_date_str) > 10:
+            # 時刻が含まれている場合は日付部分だけ抽出
+            target_date_str = input_date_str[:10]
+        else:
+            # 日付のみとみなす
+            target_date_str = input_date_str
+
+        work_data['calendarDate'] = target_date_str
+        
         # 新しいデータをDataFrame化
-        df_new = pd.DataFrame([data_dict])
+        df_new = pd.DataFrame([work_data])
         df_new['calendarDate'] = df_new['calendarDate'].astype(str)
         df_new = df_new.set_index('calendarDate')
         
@@ -177,6 +197,10 @@ def append_to_log(spreadsheet, data_dict):
         # timestampを現在時刻に更新
         row_data = data_dict.copy()
         row_data['timestamp'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # calendarDateがない場合は今日の日付を入れる
+        if not row_data.get('calendarDate'):
+            row_data['calendarDate'] = datetime.date.today().strftime("%Y-%m-%d")
         
         # COLUMN_MAPの順番通りに値を並べる（不足キーはNone）
         values = [row_data.get(k) for k in ordered_keys]
