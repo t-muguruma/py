@@ -35,15 +35,26 @@ def login_to_garmin():
 def fetch_daily_data(garmin_client, date_obj):
     """指定日のヘルスケアデータを取得して辞書で返す"""
     try:
-        # アジア/東京のタイムゾーンで取得
-        now_jst = datetime.now(ZoneInfo("Asia/Tokyo"))
-
-        date_str = now_jst.strftime("%Y-%m-%d %H:%M:%S")
+        # 引数の date_obj を使用して日付文字列を生成 (YYYY-MM-DD)
+        date_str = date_obj.strftime("%Y-%m-%d")
+        
+        # 1. サマリーデータの取得
         stats = garmin_client.get_user_summary(date_str)
 
+        # 2. 体組成データの取得（専用API）
+        body_comp = {}
+        try:
+            # get_body_composition はその日の測定詳細を返す
+            bc_data = garmin_client.get_body_composition(date_str)
+            # 'totalAverage' にその日の代表値（平均値）が入っている
+            if bc_data and 'totalAverage' in bc_data:
+                body_comp = bc_data['totalAverage'] or {}
+        except Exception as e:
+            print(f"⚠️ Body composition fetch failed: {e}")
+
         # 🔍 デバッグ用: APIから返ってきた生の全データを表示
-        print(f"--- Raw Data for {date_str} ---")
-        pprint.pprint(stats)
+        # print(f"--- Raw Data for {date_str} ---")
+        # pprint.pprint(stats)
         
         # 必要なデータを抽出（項目は必要に応じて調整してください）
         # 単位変換とデータ加工
@@ -51,10 +62,19 @@ def fetch_daily_data(garmin_client, date_obj):
         sleep_seconds = stats.get('sleepingSeconds')
         sleep_hours = round(sleep_seconds / 3600, 2) if sleep_seconds else None
 
-        # 体重: グラム -> キログラム (Garmin APIはグラムで返すことがあるため念のため)
-        weight = stats.get('totalWeight')
-        if weight and weight > 1000:
-            weight = round(weight / 1000, 2)
+        # 体重: グラム -> キログラム (優先順位: body_comp > stats)
+        raw_weight = body_comp.get('weight') or stats.get('totalWeight') or stats.get('weight')
+        weight = None
+        if raw_weight:
+            # APIによってはグラム単位(例: 65000)で返ってくるため補正
+            weight = round(raw_weight / 1000, 2) if raw_weight > 1000 else raw_weight
+
+        # その他体組成項目 (優先順位: body_comp > stats)
+        bmi = body_comp.get('bmi') or stats.get('bodyMassIndex')
+        body_fat = body_comp.get('bodyFat') or stats.get('bodyFat')
+        muscle = body_comp.get('muscleMass') or stats.get('muscleMass') # kgか%かは設定依存
+        visceral = body_comp.get('visceralFatRating') or body_comp.get('visceralFat') or stats.get('visceralFat')
+        bone = body_comp.get('boneMass') or stats.get('boneMass')
 
         # スプレッドシートの列順序に合わせて辞書を作成
         data_dict = {
@@ -75,19 +95,19 @@ def fetch_daily_data(garmin_client, date_obj):
             'sleep_hours': sleep_hours,
             # --- 体組成 ---
             'weight': weight,
-            'bmi': stats.get('bodyMassIndex'),
-            'body_fat_pct': stats.get('bodyFat'),
-            'muscle_pct': stats.get('muscleMass'),
-            'visceral_fat': stats.get('visceralFat'),
+            'bmi': bmi,
+            'body_fat_pct': body_fat,
+            'muscle_pct': muscle,
+            'visceral_fat': visceral,
             'metabolism': stats.get('bmr'),
-            'bone_mass': stats.get('boneMass'),
+            'bone_mass': bone,
             'water_ml': stats.get('totalWaterIntake'), # 水分摂取
             # --- 運動時間 ---
             'moderate_minutes': stats.get('moderateIntensityMinutes'), # 中強度運動(分)
             'vigorous_minutes': stats.get('vigorousIntensityMinutes'), # 高強度運動(分)
         }
         print(f"✅ Data fetched for {date_str}")
-        print(f"   📊 {data_dict}")
+        # print(f"   📊 {data_dict}")
         return data_dict
     except Exception as e:
         print(f"⚠️ Failed to fetch data for {date_obj}: {e}")
