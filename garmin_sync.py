@@ -3,6 +3,7 @@ from garminconnect import Garmin
 import my_garmin_common
 from dotenv import load_dotenv
 from datetime import datetime
+import datetime
 from zoneinfo import ZoneInfo
 import os
 import pprint
@@ -134,6 +135,7 @@ def main():
     # 3. データの取得
     # システム日付ではなく、JSTでの「今日」を取得
     today_jst = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    today_jst = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).date()
     # 今日と昨日のデータを取得対象にする
     target_dates = [today_jst - datetime.timedelta(days=i) for i in range(2)] 
     
