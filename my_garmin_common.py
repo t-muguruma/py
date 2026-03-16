@@ -194,13 +194,14 @@ def append_to_log(spreadsheet, data_dict):
             print(f"⚠️ Header Update Failed: {e}")
 
         # 2. データ行の作成
-        # timestampを現在時刻に更新
+        # timestampを現在時刻(JST)に更新
         row_data = data_dict.copy()
-        row_data['timestamp'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_jst = datetime.datetime.now(ZoneInfo("Asia/Tokyo"))
+        row_data['timestamp'] = now_jst.strftime("%Y-%m-%d %H:%M:%S")
         
         # calendarDateがない場合は今日の日付を入れる
         if not row_data.get('calendarDate'):
-            row_data['calendarDate'] = datetime.date.today().strftime("%Y-%m-%d")
+            row_data['calendarDate'] = now_jst.strftime("%Y-%m-%d")
         
         # COLUMN_MAPの順番通りに値を並べる（不足キーはNone）
         values = [row_data.get(k) for k in ordered_keys]
