@@ -2,7 +2,8 @@ import pandas as pd
 from garminconnect import Garmin
 import my_garmin_common
 from dotenv import load_dotenv
-import datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import os
 import pprint
 
@@ -34,7 +35,10 @@ def login_to_garmin():
 def fetch_daily_data(garmin_client, date_obj):
     """指定日のヘルスケアデータを取得して辞書で返す"""
     try:
-        date_str = date_obj.strftime("%Y-%m-%d")
+        # アジア/東京のタイムゾーンで取得
+        now_jst = datetime.now(ZoneInfo("Asia/Tokyo"))
+
+        date_str = now_jst.strftime("%Y-%m-%d %H:%M:%S")
         stats = garmin_client.get_user_summary(date_str)
 
         # 🔍 デバッグ用: APIから返ってきた生の全データを表示
@@ -66,7 +70,7 @@ def fetch_daily_data(garmin_client, date_obj):
             'max_heart_rate': stats.get('maxHeartRate'), # 最大心拍
             'min_heart_rate': stats.get('minHeartRate'), # 最小心拍
             'stress': stats.get('averageStressLevel'), 
-            'body_battery': stats.get('maxBodyBattery'), # 取れるか不明だが一応追加
+            'body_battery': stats.get('bodyBatteryMostRecentValue'), # 取れるか不明だが一応追加
             # --- 睡眠・回復 ---
             'sleep_hours': sleep_hours,
             # --- 体組成 ---
