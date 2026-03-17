@@ -2,8 +2,10 @@ name: Garmin Data Sync
 
 on:
   # 1. 毎朝7時に自動実行 (JSTで朝7時は、UTCで前日の22時)
+  # 2. 毎晩23:59に自動実行 (JSTで23:59は、UTCで同日の14:59)
   schedule:
     - cron: '0 22 * * *'
+    - cron: '59 14 * * *'
 
   # 2. 手動実行やAPIからの実行を許可するトリガー
   workflow_dispatch:
