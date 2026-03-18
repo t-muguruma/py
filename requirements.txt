@@ -1,5 +1,9 @@
 pandas
 gspread
+<<<<<<< HEAD
 google-auth
+=======
+oauth2client
+>>>>>>> 3dbff06e87ae876f1761c7c51383ec66545276f9
 garminconnect
 python-dotenv
