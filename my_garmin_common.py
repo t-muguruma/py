@@ -125,8 +125,10 @@ def get_spreadsheet(sa_key_value):
         return None
 
 def update_daily_summary(spreadsheet, data_dict):
-    """daily_summary シート（マスタ）を更新する"""
+    """daily_summary シート（マスタ）を更新する。テーブル形式を破壊しないように処理する。"""
     SUMMARY_SHEET_NAME = 'daily_summary'
+    # 1-based index of the column to sort by (A=1, B=2, etc.)
+    SORT_COLUMN_INDEX = 2 # calendarDate
     try:
         try:
             sheet = spreadsheet.worksheet(SUMMARY_SHEET_NAME)
@@ -134,51 +136,81 @@ def update_daily_summary(spreadsheet, data_dict):
             print(f"Creating new sheet: {SUMMARY_SHEET_NAME}")
             sheet = spreadsheet.add_worksheet(title=SUMMARY_SHEET_NAME, rows=1000, cols=20)
 
-        print(f"Updating {SUMMARY_SHEET_NAME}...")
-        
-        # 既存データを取得
-        df_current = sheet_to_df(sheet)
-        
-        # 作業用データを作成（日付がない場合は今日を入れる）
+        print(f"Updating {SUMMARY_SHEET_NAME} (table-safe)...")
+
+        # --- 1. 入力データの日付を正規化 ---
         # JSTの現在日時を取得
         now_jst = datetime.datetime.now(ZoneInfo("Asia/Tokyo"))
         work_data = data_dict.copy()
         input_date_str = str(work_data.get('calendarDate') or "").strip()
 
-        # 日付文字列の整形 (yyyy-mm-dd HH:mm:ss -> yyyy-mm-dd)
-        target_date_str = ""
         if not input_date_str:
             target_date_str = now_jst.strftime("%Y-%m-%d")
         elif len(input_date_str) > 10:
-            # 時刻が含まれている場合は日付部分だけ抽出
             target_date_str = input_date_str[:10]
         else:
-            # 日付のみとみなす
             target_date_str = input_date_str
 
         work_data['calendarDate'] = target_date_str
-        
-        # 新しいデータをDataFrame化
-        df_new = pd.DataFrame([work_data])
-        df_new['calendarDate'] = df_new['calendarDate'].astype(str)
-        df_new = df_new.set_index('calendarDate')
-        
-        # timestampはマスタには不要なので削除（もしあれば）
-        if 'timestamp' in df_new.columns:
-            df_new = df_new.drop(columns=['timestamp'])
+        if 'timestamp' in work_data:
+            del work_data['timestamp']
 
-        # マージとソート
-        df_updated = df_new.combine_first(df_current)
-        df_updated = df_updated.sort_index(ascending=False)
+        # --- 2. シートのヘッダーとデータを取得 ---
+        all_data = sheet.get_all_values()
+        if not all_data: # シートが完全に空の場合
+            print(f"Sheet '{SUMMARY_SHEET_NAME}' is empty. Initializing...")
+            # ヘッダーの順序をCOLUMN_MAPから（timestamp以外で）作成
+            headers = [v for k, v in COLUMN_MAP.items() if k != 'timestamp']
+            sheet.append_row(headers)
+            # ヘッダーに対応するデータ行を作成
+            new_row = [work_data.get(key) for key in COLUMN_MAP if key != 'timestamp']
+            sheet.append_row(new_row)
+            print(f"✨ Sheet '{sheet.title}' initialized and data inserted.")
+            return
+
+        headers = all_data[0]
+        try:
+            date_col_index = headers.index('対象日付') # 日本語ヘッダー名で検索
+        except ValueError:
+            print(f"❌ Critical Error: '対象日付' column not found in {SUMMARY_SHEET_NAME}.")
+            return
+
+        # --- 3. 更新対象の行を探索 ---
+        target_row_number = -1
+        for i, row in enumerate(all_data[1:]): # ヘッダーを除いて探索
+            if len(row) > date_col_index and row[date_col_index] == target_date_str:
+                target_row_number = i + 2 # 1-based index, and +1 for header
+                break
+
+        # --- 4. 更新または追記 ---
+        if target_row_number > -1:
+            # 既存行を更新
+            print(f"Updating existing row {target_row_number} for date {target_date_str}...")
+            current_row_values = sheet.row_values(target_row_number)
+            # 更新後の行データを作成
+            updated_values = []
+            for i, header_name in enumerate(headers):
+                # 逆引きしてキー名を取得
+                key_name = next((k for k, v in COLUMN_MAP.items() if v == header_name), None)
+                # 新しいデータに値があればそれを使う、なければ既存の値を使う
+                if key_name and key_name in work_data and work_data[key_name] is not None:
+                    updated_values.append(work_data[key_name])
+                else:
+                    updated_values.append(current_row_values[i] if i < len(current_row_values) else "")
+            sheet.update(f'A{target_row_number}', [updated_values])
+        else:
+            # 新しい行を追記
+            print(f"Appending new row for date {target_date_str}...")
+            new_row = [work_data.get(next((k for k, v in COLUMN_MAP.items() if v == h), None), "") for h in headers]
+            sheet.append_row(new_row)
+            sheet.sort((date_col_index + 1, 'des')) # 追記後に日付で降順ソート
         
-        # 保存
-        df_to_sheet(sheet, df_updated)
-        
+        print(f"✨ Sheet '{sheet.title}' updated.")
     except Exception as e:
         print(f"⚠️ Daily Summary Update Failed: {e}")
 
 def append_to_log(spreadsheet, data_dict):
-    """Logシート（Sheet1）へデータを追記する"""
+    """Logシート（Sheet1）へデータを追記する。テーブルが拡張されるようにヘッダーの直後に追加する。"""
     print("Appending to Log Sheet...")
     try:
         sheet = spreadsheet.sheet1
@@ -189,9 +221,11 @@ def append_to_log(spreadsheet, data_dict):
         header_row = [f"{COLUMN_MAP[k]}({k})" for k in ordered_keys]
         
         try:
-            sheet.update('A1', [header_row])
+            # A1セルが空の場合のみヘッダーを書き込む
+            if not sheet.acell('A1').value:
+                sheet.update('A1', [header_row])
         except Exception as e:
-            print(f"⚠️ Header Update Failed: {e}")
+            print(f"⚠️ Header check/update failed: {e}")
 
         # 2. データ行の作成
         # timestampを現在時刻(JST)に更新
@@ -206,8 +240,10 @@ def append_to_log(spreadsheet, data_dict):
         # COLUMN_MAPの順番通りに値を並べる（不足キーはNone）
         values = [row_data.get(k) for k in ordered_keys]
         
-        sheet.append_row(values)
-        print("✅ Log sheet updated.")
+        # ヘッダーの直後(2行目)に新しいログを挿入する
+        # これにより、テーブルが確実に拡張され、最新のログが一番上に来る
+        sheet.insert_row(values, 2)
+        print("✅ Log sheet updated (newest on top).")
         
     except Exception as e:
         print(f"❌ Log Sheet Append Error: {e}")
