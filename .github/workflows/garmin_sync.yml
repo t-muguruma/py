@@ -8,8 +8,7 @@ on:
     - cron: '59 14 * * *'
 
   # 2. 手動実行やAPIからの実行を許可するトリガー
-  repository_dispatch:
-    types: [garmin_sync]
+  workflow_dispatch:
 
 jobs:
   sync:
