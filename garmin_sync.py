@@ -6,6 +6,7 @@ import datetime
 from zoneinfo import ZoneInfo
 import os
 import pprint
+import sys
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
@@ -119,17 +120,17 @@ def main():
     # 1. スプレッドシート接続（先に確認）
     if not SA_KEY_VALUE:
         print("❌ シークレット 'SA_KEY' が設定されていません。")
-        return
+        sys.exit(1)
 
     spreadsheet = my_garmin_common.get_spreadsheet(SA_KEY_VALUE)
     if not spreadsheet:
         print("❌ スプレッドシートに接続できないため終了します。")
-        return
+        sys.exit(1)
 
     # 2. Garminログイン
     garmin = login_to_garmin()
     if not garmin:
-        return
+        sys.exit(1)
 
     # 3. データの取得
     # JSTで「今日」を取得 (datetimeモジュールを明示的に使用)
