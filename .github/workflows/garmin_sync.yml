@@ -35,19 +35,19 @@ jobs:
 
     - name: Restore Garmin Session from Secret
       run: |
-        # Base64シークレットをデコードしてzipファイルに戻す
-        echo "${{ secrets.GARMIN_SESSION_BASE64 }}" | base64 -d > garth.zip
-        # 解凍先ディレクトリを作成
+        echo "${{ secrets.GARMIN_SESSION_BASE64 }}" | base64 -d > garth_temp.zip
+        # 一旦 temp フォルダに全部出す
+        mkdir -p temp_extract
+        unzip -o garth_temp.zip -d temp_extract
+        
+        # 📂 .garth フォルダをクリーンに作り直す
         mkdir -p .garth
-        # Pythonで解凍（中身がフラットなら .garth 直下に、フォルダ付きなら .garth/.garth に展開される）
-        python -c "import zipfile; zipfile.ZipFile('garth.zip').extractall('.garth')"
-        # もし .garth/.garth という二重構造になってしまった場合、中身を上に移動して修正する
-        if [ -d ".garth/.garth" ]; then
-          mv .garth/.garth/* .garth/
-          rmdir .garth/.garth
-        fi
-        # デバッグ用: フォルダが存在するか確認
-        ls -la .garth
+        
+        # 🕵️ 中身がどこにあろうが、jsonファイルを .garth 直下に移動させるジェ！
+        find temp_extract -name "*.json" -exec mv {} .garth/ \;
+        
+        # ✅ デバッグ：これでファイルが見えれば「勝ち確」
+        ls -la .garth/
 
     - name: Run Garmin Sync script
       env:
