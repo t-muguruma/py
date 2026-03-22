@@ -37,11 +37,17 @@ jobs:
       run: |
         # Base64シークレットをデコードしてzipファイルに戻す
         echo "${{ secrets.GARMIN_SESSION_BASE64 }}" | base64 -d > garth.zip
-        # 解凍して .garth フォルダを配置する
-        # Windows作成のzip(バックスラッシュ)に対するunzipコマンドの警告(終了コード1)を回避するためPythonで解凍
-        python -c "import zipfile; zipfile.ZipFile('garth.zip').extractall('.')"
-        # デバッグ用: フォルダが存在するか確認（ログには出ても中身は見えないので安全）
-        ls -la .garth || echo ".garth folder not found"
+        # 解凍先ディレクトリを作成
+        mkdir -p .garth
+        # Pythonで解凍（中身がフラットなら .garth 直下に、フォルダ付きなら .garth/.garth に展開される）
+        python -c "import zipfile; zipfile.ZipFile('garth.zip').extractall('.garth')"
+        # もし .garth/.garth という二重構造になってしまった場合、中身を上に移動して修正する
+        if [ -d ".garth/.garth" ]; then
+          mv .garth/.garth/* .garth/
+          rmdir .garth/.garth
+        fi
+        # デバッグ用: フォルダが存在するか確認
+        ls -la .garth
 
     - name: Run Garmin Sync script
       env:
