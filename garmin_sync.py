@@ -1,3 +1,4 @@
+import garth
 import pandas as pd
 from garminconnect import Garmin
 import my_garmin_common

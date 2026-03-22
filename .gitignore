@@ -1,3 +1,5 @@
 *.env
 
 google/
+.garth/
+garmin_connect.py

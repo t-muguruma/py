@@ -30,6 +30,14 @@ jobs:
         pip install --upgrade garminconnect garth
         pip install pandas gspread google-auth garminconnect python-dotenv
 
+    - name: Restore Garmin session cache
+      uses: actions/cache@v3
+      with:
+        path: ./.garth
+        # メールアドレスをキーにして保存するジェ
+        key: ${{ runner.os }}-garmin-session-${{ secrets.GARMIN_EMAIL }}
+
+    # ここで python garmin_sync.py を実行するジェ
     - name: Run Garmin Sync script
       env:
         GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
