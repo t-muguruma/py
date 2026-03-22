@@ -23,6 +23,20 @@ SA_KEY_VALUE = my_garmin_common.get_secret("SA_KEY")
 
 # Garmin認証クライアント
 def get_garmin_client():
+    token_dir = "./.garth"
+    
+    # 1. キャッシュ（合鍵）があればそれを使う
+    if os.path.exists(token_dir):
+        try:
+            garth.resume(token_dir)
+            garmin = Garmin(GARMIN_EMAIL, GARMIN_PASSWORD)
+            garmin.garth = garth.client
+            log_message("INFO", "✅ キャッシュからセッションを復元成功。ログイン処理をスキップします。")
+            return garmin
+        except Exception as e:
+            log_message("WARN", f"キャッシュからの復元に失敗しました。通常ログインを試みます: {e}")
+
+    # 2. キャッシュがない、または失敗した場合は通常ログイン
     if not GARMIN_EMAIL or not GARMIN_PASSWORD:
         log_message("ERROR", "環境変数 'GARMIN_EMAIL' または 'GARMIN_PASSWORD' が未設定。")
         return None
