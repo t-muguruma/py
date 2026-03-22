@@ -38,7 +38,8 @@ jobs:
         # Base64シークレットをデコードしてzipファイルに戻す
         echo "${{ secrets.GARMIN_SESSION_BASE64 }}" | base64 -d > garth.zip
         # 解凍して .garth フォルダを配置する
-        unzip garth.zip
+        # Windows作成のzip(バックスラッシュ)に対するunzipコマンドの警告(終了コード1)を回避するためPythonで解凍
+        python -c "import zipfile; zipfile.ZipFile('garth.zip').extractall('.')"
         # デバッグ用: フォルダが存在するか確認（ログには出ても中身は見えないので安全）
         ls -la .garth || echo ".garth folder not found"
 
