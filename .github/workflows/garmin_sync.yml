@@ -80,4 +80,5 @@ jobs:
         INPUT_CALENDAR_DATE: ${{ inputs.calendarDate }}
         PAYLOAD_TARGET_DATE: ${{ github.event.client_payload.target_date }}
         PAYLOAD_CALENDAR_DATE: ${{ github.event.client_payload.calendarDate }}
+        PAYLOAD_DEBUG_INFO: ${{ github.event.client_payload.debug_info }}
       run: python garmin_sync.py
