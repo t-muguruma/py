@@ -108,6 +108,7 @@ def main():
     # データ取得
     # 環境変数 TARGET_DATE が指定されていれば、その日だけを処理する
     env_target_date = os.getenv("TARGET_DATE")
+    log_message("DEBUG", f"受け取った日付指定(TARGET_DATE): '{env_target_date}'")
     
     if env_target_date:
         try:
