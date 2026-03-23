@@ -106,10 +106,22 @@ def main():
         sys.exit(1)
 
     # データ取得
-    today = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).date()
-    # 処理順序を「昨日 -> 今日」の時系列順に変更 (reversedを使用)
-    # これにより、Logシートへの追記順が「昨日を挿入 -> 今日を挿入(一番上)」となり、最新日付が最上行に来る
-    target_dates = [today - datetime.timedelta(days=i) for i in reversed(range(2))]
+    # 環境変数 TARGET_DATE が指定されていれば、その日だけを処理する
+    env_target_date = os.getenv("TARGET_DATE")
+    
+    if env_target_date:
+        try:
+            target_date = datetime.datetime.strptime(env_target_date, "%Y-%m-%d").date()
+            target_dates = [target_date]
+            log_message("INFO", f"🎯 指定日付モード: {target_date} のデータを取得します。")
+        except ValueError:
+            log_message("ERROR", f"❌ 日付形式エラー (YYYY-MM-DD): {env_target_date}")
+            sys.exit(1)
+    else:
+        # 通常モード: 昨日 -> 今日
+        today = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).date()
+        target_dates = [today - datetime.timedelta(days=i) for i in reversed(range(2))]
+
     new_data_list = []
 
     for date in target_dates:
@@ -123,6 +135,9 @@ def main():
         my_garmin_common.update_daily_summary(spreadsheet, data)
         my_garmin_common.append_to_log(spreadsheet, data)
         log_message("INFO", f"{data['calendarDate']}: データアップロード成功。")
+
+    # 最後にLogシートをソートして整える
+    my_garmin_common.sort_log_sheet(spreadsheet)
 
 if __name__ == "__main__":
     main()

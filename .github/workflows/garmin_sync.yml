@@ -9,9 +9,17 @@ on:
     # 2. 毎晩23:59に自動実行 (JSTで23:59は、UTCで同日の14:59)
     - cron: '59 14 * * *'
 
-  # 2. 手動実行やAPIからの実行を許可するトリガー
-  # 手動実行やAPIからの実行を許可するトリガー
+  # 外部APIからのPOST (repository_dispatch) を受け付ける
+  repository_dispatch:
+    types: [garmin_sync_request]
+
+  # 手動実行時に日付指定を可能にする
   workflow_dispatch:
+    inputs:
+      target_date:
+        description: '対象日付 (YYYY-MM-DD)'
+        required: false
+        type: string
 
 jobs:
   sync:
@@ -56,4 +64,6 @@ jobs:
         GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
         GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         SA_KEY: ${{ secrets.SA_KEY }}
+        # POSTされたJSON(client_payload) または 手動入力(inputs) から日付を取得
+        TARGET_DATE: ${{ github.event.client_payload.target_date || inputs.target_date }}
       run: python garmin_sync.py
