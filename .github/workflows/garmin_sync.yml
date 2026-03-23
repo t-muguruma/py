@@ -68,6 +68,9 @@ jobs:
         GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
         GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         SA_KEY: ${{ secrets.SA_KEY }}
-        # 優先順位: inputs (手動/GAS) -> client_payload (API)
-        TARGET_DATE: ${{ inputs.target_date || inputs.calendarDate || github.event.client_payload.target_date || github.event.client_payload.calendarDate }}
+        # 複雑な条件分岐をやめて、あり得る値をすべて環境変数として渡す（判定はPythonで行う）
+        INPUT_TARGET_DATE: ${{ inputs.target_date }}
+        INPUT_CALENDAR_DATE: ${{ inputs.calendarDate }}
+        PAYLOAD_TARGET_DATE: ${{ github.event.client_payload.target_date }}
+        PAYLOAD_CALENDAR_DATE: ${{ github.event.client_payload.calendarDate }}
       run: python garmin_sync.py

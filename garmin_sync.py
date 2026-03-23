@@ -106,9 +106,20 @@ def main():
         sys.exit(1)
 
     # データ取得
-    # 環境変数 TARGET_DATE が指定されていれば、その日だけを処理する
-    env_target_date = os.getenv("TARGET_DATE")
-    log_message("DEBUG", f"受け取った日付指定(TARGET_DATE): '{env_target_date}'")
+    # 環境変数から日付指定を取得 (優先順位順にチェック)
+    # YAMLでの評価漏れを防ぐため、Python側ですべての可能性を確認する
+    possible_keys = ["INPUT_TARGET_DATE", "INPUT_CALENDAR_DATE", "PAYLOAD_TARGET_DATE", "PAYLOAD_CALENDAR_DATE"]
+    env_target_date = None
+    
+    for key in possible_keys:
+        val = os.getenv(key)
+        if val and val.strip():
+            env_target_date = val.strip()
+            log_message("DEBUG", f"📅 日付指定を発見 ({key}): '{env_target_date}'")
+            break
+    
+    if not env_target_date:
+        log_message("DEBUG", "日付指定なし (通常モード: 昨日・今日を取得)")
     
     if env_target_date:
         try:
