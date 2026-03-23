@@ -111,12 +111,18 @@ def main():
     possible_keys = ["INPUT_TARGET_DATE", "INPUT_CALENDAR_DATE", "PAYLOAD_TARGET_DATE", "PAYLOAD_CALENDAR_DATE"]
     env_target_date = None
     
+    log_message("DEBUG", "--- 日付パラメータ確認 ---")
     for key in possible_keys:
         val = os.getenv(key)
+        # デバッグ用: 値が入っているか、空文字かを確認
+        if val is not None:
+            log_message("DEBUG", f"{key}: '{val}'")
+            
         if val and val.strip():
             env_target_date = val.strip()
-            log_message("DEBUG", f"📅 日付指定を発見 ({key}): '{env_target_date}'")
+            log_message("INFO", f"✅ 日付指定を採用 ({key}): '{env_target_date}'")
             break
+    log_message("DEBUG", "--------------------------")
     
     if not env_target_date:
         log_message("DEBUG", "日付指定なし (通常モード: 昨日・今日を取得)")
