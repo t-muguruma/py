@@ -108,7 +108,7 @@ def main():
     # データ取得
     # 環境変数から日付指定を取得 (優先順位順にチェック)
     # YAMLでの評価漏れを防ぐため、Python側ですべての可能性を確認する
-    possible_keys = ["INPUT_TARGET_DATE", "INPUT_CALENDAR_DATE", "PAYLOAD_TARGET_DATE", "PAYLOAD_CALENDAR_DATE"]
+    possible_keys = ["INPUT_TARGET_DATE", "INPUT_CALENDAR_DATE", "PAYLOAD_TARGET_DATE", "PAYLOAD_CALENDAR_DATE", "PAYLOAD_DEBUG_INFO"]
     env_target_date = None
     
     log_message("DEBUG", "--- 日付パラメータ確認 ---")
@@ -118,6 +118,10 @@ def main():
         if val is not None:
             log_message("DEBUG", f"{key}: '{val}'")
             
+        if key == "PAYLOAD_DEBUG_INFO":
+            # デバッグ情報は日付判定に使わないのでスキップ
+            continue
+
         if val and val.strip():
             env_target_date = val.strip()
             log_message("INFO", f"✅ 日付指定を採用 ({key}): '{env_target_date}'")
