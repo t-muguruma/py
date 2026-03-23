@@ -80,10 +80,19 @@ def fetch_daily_data(garmin_client, date_obj):
         "calendarDate": date_str,
         "steps": stats.get("totalSteps"),
         "distance_m": stats.get("totalDistanceMeters"),
+        "floors_ascended": stats.get("floorsAscended"),
+        "active_calories": stats.get("activeKilocalories"),
+        "total_calories": stats.get("totalKilocalories"),
+        "heart_rate": stats.get("restingHeartRate"),
+        "max_heart_rate": stats.get("maxHeartRate"),
+        "min_heart_rate": stats.get("minHeartRate"),
+        "stress": stats.get("averageStressLevel"),
+        "body_battery": stats.get("bodyBatteryHighestValue"),
+        "moderate_minutes": stats.get("moderateIntensityMinutes"),
+        "vigorous_minutes": stats.get("vigorousIntensityMinutes"),
         "sleep_hours": round(stats.get("sleepingSeconds", 0) / 3600, 2),
         "weight": round((body_comp.get("weight", stats.get("weight", 0)) / 1000), 2)
         if body_comp.get("weight", stats.get("weight", 0)) > 1000 else stats.get("weight", 0),
-        # 他のデータも同様に...
     }
     return data_dict
 
