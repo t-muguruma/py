@@ -5,6 +5,7 @@ import datetime
 from zoneinfo import ZoneInfo
 from google.oauth2.service_account import Credentials
 import gspread
+from gspread.utils import rowcol_to_a1
 
 # --- 定数定義 ---
 SPREADSHEET_ID = '15CCDjcBCqSWYacPWf_RNXTBdJZ33x6pXAc1PhwPfkiY'
@@ -247,3 +248,26 @@ def append_to_log(spreadsheet, data_dict):
         
     except Exception as e:
         print(f"❌ Log Sheet Append Error: {e}")
+
+def sort_log_sheet(spreadsheet):
+    """Logシートを実行日時(A列)降順 -> 対象日付(B列)降順でソートする。ヘッダー(1行目)は除外。"""
+    print("Sorting Log Sheet...")
+    try:
+        sheet = spreadsheet.sheet1
+        # データのある全範囲を取得
+        all_values = sheet.get_all_values()
+        num_rows = len(all_values)
+        if num_rows < 2:
+            print("ℹ️ No data to sort.")
+            return
+
+        num_cols = len(all_values[0])
+        # ソート範囲を決定 (A2 から 右下のセルまで)
+        sort_range = f"A2:{rowcol_to_a1(num_rows, num_cols)}"
+        
+        # 1列目(timestamp)を降順、2列目(calendarDate)を降順でソート
+        sheet.sort((1, 'des'), (2, 'des'), range=sort_range)
+        print("✅ Log sheet sorted (Timestamp DESC -> Date DESC).")
+        
+    except Exception as e:
+        print(f"⚠️ Log Sheet Sort Error: {e}")
