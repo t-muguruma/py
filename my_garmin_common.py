@@ -197,12 +197,12 @@ def update_daily_summary(spreadsheet, data_dict):
                     updated_values.append(work_data[key_name])
                 else:
                     updated_values.append(current_row_values[i] if i < len(current_row_values) else "")
-            sheet.update(f'A{target_row_number}', [updated_values])
+            sheet.update(f'A{target_row_number}', [updated_values], value_input_option='USER_ENTERED')
         else:
             # 新しい行を追記
             print(f"Appending new row for date {target_date_str}...")
             new_row = [work_data.get(next((k for k, v in COLUMN_MAP.items() if v == h), None), "") for h in headers]
-            sheet.append_row(new_row)
+            sheet.append_row(new_row, value_input_option='USER_ENTERED')
             sheet.sort((date_col_index + 1, 'des')) # 追記後に日付で降順ソート
         
         print(f"✨ Sheet '{sheet.title}' updated.")
@@ -242,7 +242,7 @@ def append_to_log(spreadsheet, data_dict):
         
         # ヘッダーの直後(2行目)に新しいログを挿入する
         # これにより、テーブルが確実に拡張され、最新のログが一番上に来る
-        sheet.insert_row(values, 2)
+        sheet.insert_row(values, 2, value_input_option='USER_ENTERED')
         print("✅ Log sheet updated (newest on top).")
         
     except Exception as e:
