@@ -119,6 +119,7 @@ def main():
     # データアップロード
     for data in new_data_list:
         my_garmin_common.update_daily_summary(spreadsheet, data)
+        my_garmin_common.append_to_log(spreadsheet, data)
         log_message("INFO", f"{data['calendarDate']}: データアップロード成功。")
 
 if __name__ == "__main__":
