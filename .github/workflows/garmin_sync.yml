@@ -65,5 +65,5 @@ jobs:
         GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         SA_KEY: ${{ secrets.SA_KEY }}
         # POSTされたJSON(client_payload) または 手動入力(inputs) から日付を取得
-        TARGET_DATE: ${{ github.event.client_payload.target_date || inputs.target_date }}
+        TARGET_DATE: ${{ github.event.client_payload.target_date || github.event.client_payload.calendarDate || inputs.target_date }}
       run: python garmin_sync.py
