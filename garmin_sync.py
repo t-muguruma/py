@@ -31,8 +31,14 @@ def get_garmin_client():
             garth.resume(token_dir)
             garmin = Garmin(GARMIN_EMAIL, GARMIN_PASSWORD)
             garmin.garth = garth.client
-            log_message("INFO", "✅ キャッシュからセッションを復元成功。ログイン処理をスキップします。")
-            return garmin
+
+            # 合鍵からユーザー名を復元してセットする（これが無いと daily/None になってエラーになる）
+            if garth.client.profile and "displayName" in garth.client.profile:
+                garmin.display_name = garth.client.profile["displayName"]
+                log_message("INFO", f"✅ キャッシュからセッションを復元成功。ユーザー: {garmin.display_name}")
+                return garmin
+            
+            raise Exception("キャッシュにユーザー情報(displayName)が見つかりません。")
         except Exception as e:
             log_message("WARN", f"キャッシュからの復元に失敗しました。通常ログインを試みます: {e}")
 
