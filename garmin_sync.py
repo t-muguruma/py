@@ -107,7 +107,9 @@ def main():
 
     # データ取得
     today = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).date()
-    target_dates = [today - datetime.timedelta(days=i) for i in range(2)]  # 今日・昨日
+    # 処理順序を「昨日 -> 今日」の時系列順に変更 (reversedを使用)
+    # これにより、Logシートへの追記順が「昨日を挿入 -> 今日を挿入(一番上)」となり、最新日付が最上行に来る
+    target_dates = [today - datetime.timedelta(days=i) for i in reversed(range(2))]
     new_data_list = []
 
     for date in target_dates:
