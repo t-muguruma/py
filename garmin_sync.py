@@ -54,6 +54,8 @@ def get_garmin_client():
     try:
         garmin = Garmin(GARMIN_EMAIL, GARMIN_PASSWORD)
         garmin.login()
+        # ログイン成功時、次回のシークレット更新用にトークンを保存する
+        garmin.garth.dump(token_dir)
         log_message("INFO", "Garmin Connectへのログイン成功。")
         return garmin
     except Exception as e:

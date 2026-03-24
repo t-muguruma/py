@@ -82,3 +82,16 @@ jobs:
         PAYLOAD_CALENDAR_DATE: ${{ github.event.client_payload.calendarDate }}
         PAYLOAD_DEBUG_INFO: ${{ github.event.client_payload.debug_info }}
       run: python garmin_sync.py
+
+    - name: Update Garmin Session Secret
+      # Pythonスクリプトが成功した場合のみ実行
+      if: success()
+      env:
+        GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      run: |
+        # .garthフォルダをzip圧縮
+        zip -r garth_new.zip .garth
+        # Base64エンコード (Linuxのbase64コマンドは改行が入るため -w 0 で無効化)
+        NEW_SECRET=$(base64 -w 0 garth_new.zip)
+        # ghコマンドを使ってシークレットを更新
+        gh secret set GARMIN_SESSION_BASE64 --body "$NEW_SECRET"
