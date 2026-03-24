@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 import os
 import sys
 import time
+import random
 
 # ログ一貫性のためのフォーマット
 def log_message(level, message):
@@ -40,6 +41,10 @@ def get_garmin_client():
             
             raise Exception("キャッシュにユーザー情報(displayName)が見つかりません。")
         except Exception as e:
+            # 429エラーの場合は、これ以上ログイン試行を行わず終了する（ロックアウト防止）
+            if "429" in str(e):
+                log_message("ERROR", f"Garmin API Rate Limit (429) detected during session resume. Aborting to prevent extended lockout. Error: {e}")
+                return None
             log_message("WARN", f"キャッシュからの復元に失敗しました。通常ログインを試みます: {e}")
 
     # 2. キャッシュがない、または失敗した場合は通常ログイン
@@ -98,6 +103,11 @@ def fetch_daily_data(garmin_client, date_obj):
 
 # メイン処理
 def main():
+    # GitHub ActionsのIP分散対策：開始時間をランダムに遅らせる (10-30秒)
+    startup_delay = random.randint(10, 30)
+    log_message("INFO", f"⏳ Avoid Thundering Herd: Waiting {startup_delay}s...")
+    time.sleep(startup_delay)
+
     # 環境変数チェック
     if not SA_KEY_VALUE:
         log_message("ERROR", "環境変数 'SA_KEY' が設定されていません。")
