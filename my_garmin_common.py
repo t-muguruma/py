@@ -70,11 +70,17 @@ def get_google_creds(secret_value):
         if os.path.exists(str(secret_value)):
             creds = Credentials.from_service_account_file(secret_value, scopes=scope)
             return gspread.authorize(creds)
-        # Case 2: 引数がJSON文字列の場合
-        else:
+        
+        # Case 2: JSON文字列の場合 ( { で始まればJSONとみなす)
+        elif str(secret_value).strip().startswith("{"):
             info = json.loads(secret_value)
             creds = Credentials.from_service_account_info(info, scopes=scope)
             return gspread.authorize(creds)
+            
+        # Case 3: ファイルも見つからず、JSONでもない場合
+        else:
+            raise FileNotFoundError(f"認証ファイルが見つかりません: '{secret_value}' (現在の場所: {os.getcwd()})")
+            
     except Exception as e:
         print(f"⚠️ Google Auth Error: {e}")
         return None
