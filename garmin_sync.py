@@ -59,6 +59,10 @@ def get_garmin_client():
         log_message("INFO", "Garmin Connectへのログイン成功。")
         return garmin
     except Exception as e:
+        if "429" in str(e):
+            log_message("ERROR", "⛔ Garmin API Rate Limit (429). アクセス過多により一時的にブロックされています。")
+            log_message("ERROR", "   1〜2時間待つか、別のネットワーク(テザリング等)から実行してキャッシュ(.garth)を作成してください。")
+            return None
         log_message("ERROR", f"Garminへのログイン失敗: {e}")
         return None
 
