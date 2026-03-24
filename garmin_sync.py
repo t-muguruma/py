@@ -45,6 +45,8 @@ def get_garmin_client():
             if garth.client.profile and "displayName" in garth.client.profile:
                 garmin.display_name = garth.client.profile["displayName"]
                 log_message("INFO", f"✅ キャッシュからセッションを復元成功。ユーザー: {garmin.display_name}")
+                # キャッシュが古くならないように、成功したらタイムスタンプを更新（上書き保存）しておく
+                garmin.garth.dump(token_dir)
                 return garmin
             
             raise Exception("キャッシュにユーザー情報(displayName)が見つかりません。")
