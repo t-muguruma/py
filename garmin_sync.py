@@ -29,6 +29,14 @@ def get_garmin_client():
     # 1. キャッシュ（合鍵）があればそれを使う
     if os.path.exists(token_dir):
         try:
+            # デバッグ: トークンファイルのタイムスタンプを表示して、新旧を確認できるようにする
+            ts = os.path.getmtime(os.path.join(token_dir, "oauth2_token.json"))
+            dt = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+            log_message("DEBUG", f"Using cache files created at: {dt}")
+        except Exception:
+            pass
+            
+        try:
             garth.resume(token_dir)
             garmin = Garmin(GARMIN_EMAIL, GARMIN_PASSWORD)
             garmin.garth = garth.client
